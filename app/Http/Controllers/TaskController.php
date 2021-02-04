@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
 {
@@ -91,32 +92,71 @@ class TaskController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int $id
-     * @return Response
+     * @return Application|Factory|View|Response
      */
     public function edit($id)
     {
-        //
+        $task = Task::findOrFail($id);
+        return view('tasks.edit', compact('task'));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  int $id
-     * @return Response
+     * @param Request $request
+     * @param int $id
+     * @return RedirectResponse
      */
-    public function update($id)
+    public function update(Request $request, $id): RedirectResponse
     {
-        //
+        $task = Task::findOrFail($id);
+        $task->title = $request->input('title');
+        $task->content = $request->input('content');
+
+        //cap nhat anh
+        if ($request->hasFile('image')) {
+
+            //xoa anh cu neu co
+            $currentImg = $task->image;
+            if ($currentImg) {
+                Storage::delete('/public/' . $currentImg);
+            }
+            // cap nhat anh moi
+            $image = $request->file('image');
+            $path = $image->store('images', 'public');
+            $task->image = $path;
+        }
+
+        $task->due_date = $request->input('due_date');
+        $task->save();
+
+        //dung session de dua ra thong bao
+        Session::flash('success', 'Cập nhật thành công');
+        //tao moi xong quay ve trang danh sach task
+        return redirect()->route('tasks.index');
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int $id
-     * @return Response
+     * @param  int  $id
+     * @return RedirectResponse
      */
-    public function destroy($id)
+    public function destroy($id): RedirectResponse
     {
-        //
+        $task = Task::findOrFail($id);
+        $image = $task->image;
+
+        //delete image
+        if ($image) {
+            Storage::delete('/public/' . $image);
+        }
+
+        $task->delete();
+
+        //dung session de dua ra thong bao
+        Session::flash('success', 'Xóa thành công');
+        //xoa xong quay ve trang danh sach task
+        return redirect()->route('tasks.index');
     }
 }
